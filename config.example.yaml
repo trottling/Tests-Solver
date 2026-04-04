@@ -1,0 +1,17 @@
+vk:
+  group_token: "vk1..." # longpoll токен ВК
+  group_id: 123 # ID группы
+  allowed_ids: [ 11111111, 22222222 ] # ID Юзеров с доступом
+  api_url: ""
+
+openai:
+  api_key: "sk-proj-..." # токен openAI
+  base_url: "https://api.openai.com/v1" # для кастомных провайдеров
+  model: "gpt-5.4" # модель
+  reason: "high" # мыслительное усилие "low" | "medium" | "high"
+  detail: "high" # качество обработки картинок "low" | "high" | "auto"
+  tokens: 16000 # лимит токенов на одно решение
+
+bot:
+  workers: 15 # одновременных запросов к openAI
+  max_concurrent_per_user: 5 # одновременных запросов от одного юзера
