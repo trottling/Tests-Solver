@@ -4,10 +4,8 @@
 
 ## Возможности
 
-- Приём одного или нескольких изображений как `photo` или `doc` (файл-картинка).
-- Вызов OpenAI Chat Completions API через `openai-go` (совместимо с прокси, где `/v1/responses` недоступен).
-- Модель по умолчанию: `gpt-5.4`.
-- Параметры запроса: детализация картинки `detail=low`, `reasoning_effort=low`, `max_completion_tokens=12000`.
+- Приём фото как `photo` или `doc` (файл-картинка).
+- Параметры запроса - детализация картинки `detail=low`, `reasoning_effort=low`, `max_completion_tokens=12000`.
 - Стриминг результата с редактированием одного VK-сообщения раз в 3 секунды.
 - Middleware:
   - access-list по `user_id`;
