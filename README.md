@@ -28,3 +28,7 @@ go run ./cmd/bot -config config.yaml
 ## Промпт
 
 См. `internal/openaiagent/prompt.go`
+
+
+## Пример работы бота
+![img.png](img.png)
