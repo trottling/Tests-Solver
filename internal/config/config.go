@@ -22,6 +22,7 @@ type Config struct {
 		Reason  string `yaml:"reason"`
 		Detail  string `yaml:"detail"`
 		Tokens  int    `yaml:"tokens"`
+		Store   bool   `yaml:"store"`
 	} `yaml:"openai"`
 	Bot struct {
 		Workers            int `yaml:"workers"`
@@ -54,17 +55,17 @@ func Load(path string, l *logrus.Logger) (*Config, error) {
 	}
 	r := cfg.OpenAI.Reason
 	if r != "low" && r != "medium" && r != "high" {
-		l.Warnf("OpenAI.Reason установлен как %s, переопределение на medium\n", r)
-		cfg.OpenAI.Reason = "medium"
+		l.Warnf("OpenAI.Reason установлен как %s, переопределение на high\n", r)
+		cfg.OpenAI.Reason = "high"
 	}
 	d := cfg.OpenAI.Detail
-	if d != "auto" && d != "low" && d != "high" {
-		l.Warnf("OpenAI.Detail установлен как %s, переопределение на auto\n", d)
-		cfg.OpenAI.Detail = "auto"
+	if d != "auto" && d != "low" && d != "high" && d != "original" {
+		l.Warnf("OpenAI.Detail установлен как %s, переопределение на original\n", d)
+		cfg.OpenAI.Detail = "original"
 	}
 	if cfg.OpenAI.Tokens <= 1000 {
-		l.Warnf("OpenAI.Tokens установлен как %d, переопределение на 12000\n", cfg.OpenAI.Tokens)
-		cfg.OpenAI.Tokens = 12000
+		l.Warnf("OpenAI.Tokens установлен как %d, переопределение на 30000\n", cfg.OpenAI.Tokens)
+		cfg.OpenAI.Tokens = 30000
 	}
 
 	l.Info("Конфиг: ", cfg)
