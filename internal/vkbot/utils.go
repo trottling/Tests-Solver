@@ -38,7 +38,7 @@ func splitText(text string) []string {
 	return chunks
 }
 
-func extractSingleImageURL(attachments []object.MessagesMessageAttachment) (string, error) {
+func extractImageURLs(attachments []object.MessagesMessageAttachment) ([]string, error) {
 	urls := make([]string, 0, len(attachments))
 	for _, att := range attachments {
 		switch att.Type {
@@ -58,12 +58,8 @@ func extractSingleImageURL(attachments []object.MessagesMessageAttachment) (stri
 			}
 		}
 	}
-	switch len(urls) {
-	case 0:
-		return "", fmt.Errorf("пришлите ровно одно изображение (фото или файл-картинку)")
-	case 1:
-		return urls[0], nil
-	default:
-		return "", fmt.Errorf("можно отправить только одно изображение за сообщение")
+	if len(urls) == 0 {
+		return nil, fmt.Errorf("пришлите хотя бы одно изображение (фото или файл-картинку)")
 	}
+	return urls, nil
 }

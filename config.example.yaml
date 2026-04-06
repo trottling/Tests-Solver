@@ -9,8 +9,9 @@ openai:
   base_url: "https://api.openai.com/v1" # для кастомных провайдеров
   model: "gpt-5.4" # модель
   reason: "high" # мыслительное усилие "low" | "medium" | "high"
-  detail: "high" # качество обработки картинок "low" | "high" | "auto"
-  tokens: 16000 # лимит токенов на одно решение
+  detail: "original" # качество обработки картинок "low" | "high" | "auto" | "original"
+  tokens: 30000 # стартовый лимит токенов на один ответ (включая reasoning+output)
+  store: false # не сохранять response objects
 
 bot:
   workers: 15 # одновременных запросов к openAI

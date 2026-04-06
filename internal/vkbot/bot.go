@@ -2,6 +2,7 @@ package vkbot
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"mime"
@@ -87,7 +88,7 @@ func (b *Bot) Run(ctx context.Context) error {
 }
 
 func (b *Bot) handleMessage(ctx context.Context, msg object.MessagesMessage) {
-	imageURL, err := extractSingleImageURL(msg.Attachments)
+	imageURLs, err := extractImageURLs(msg.Attachments)
 	if err != nil {
 		if _, err = b.sendMessage(msg.PeerID, msg.ID, err.Error()); err != nil {
 			fmt.Printf("❌ Ошибка: %s", err.Error())
@@ -100,34 +101,38 @@ func (b *Bot) handleMessage(ctx context.Context, msg object.MessagesMessage) {
 		return
 	}
 
-	image, mimeType, downloadErr := b.downloadImage(ctx, imageURL)
-	if downloadErr != nil {
-		b.editMessage(msg.PeerID, messageID, fmt.Sprintf("❌ Не удалось скачать изображение: %v", downloadErr))
-		return
+	images := make([]openaiagent.ImageInput, 0, len(imageURLs))
+	for idx, imageURL := range imageURLs {
+		b.editMessage(msg.PeerID, messageID, fmt.Sprintf("⬇️ Загружаю изображение %d из %d…", idx+1, len(imageURLs)))
+		image, mimeType, downloadErr := b.downloadImage(ctx, imageURL)
+		if downloadErr != nil {
+			b.editMessage(msg.PeerID, messageID, fmt.Sprintf("❌ Не удалось скачать изображение %d: %v", idx+1, downloadErr))
+			return
+		}
+		images = append(images, openaiagent.ImageInput{Data: image, MimeType: mimeType})
 	}
 
-	b.editMessage(msg.PeerID, messageID, "📝 Распознаю и решаю тест…")
-
-	done := make(chan struct{})
+	b.editMessage(msg.PeerID, messageID, "📝 Распознаю задания…")
 	startTime := time.Now()
+	done := make(chan struct{})
 
 	go func() {
-		ticker := time.NewTicker(time.Second * 5)
+		ticker := time.NewTicker(time.Second * 4)
 		defer ticker.Stop()
+		phase := 0
+		phases := []string{"📝 Распознаю задания…", "🧠 Решаю…", "✅ Проверяю ответ…"}
 		for {
 			select {
 			case <-done:
 				return
 			case <-ticker.C:
-				b.editMessage(msg.PeerID, messageID, fmt.Sprintf("💭 Думаю… (%.0f сек)", time.Now().Sub(startTime).Seconds()))
+				phase = (phase + 1) % len(phases)
+				b.editMessage(msg.PeerID, messageID, fmt.Sprintf("%s (%.0f сек)", phases[phase], time.Since(startTime).Seconds()))
 			}
 		}
 	}()
 
-	finalText, err := b.oai.StreamSolveImage(ctx, openaiagent.ImageInput{
-		Data:     image,
-		MimeType: mimeType,
-	}, func(string) {})
+	result, err := b.oai.SolveImages(ctx, images)
 	close(done)
 
 	if err != nil {
@@ -135,6 +140,13 @@ func (b *Bot) handleMessage(ctx context.Context, msg object.MessagesMessage) {
 		return
 	}
 
+	res, marshalErr := json.MarshalIndent(result, "", "  ")
+	if marshalErr != nil {
+		b.editMessage(msg.PeerID, messageID, fmt.Sprintf("❌ Ошибка сериализации ответа: %v", marshalErr.Error()))
+		return
+	}
+
+	finalText := string(res)
 	if strings.TrimSpace(finalText) == "" {
 		finalText = "❌ Пустой ответ ИИ"
 	}
