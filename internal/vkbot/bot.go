@@ -2,7 +2,6 @@ package vkbot
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"mime"
@@ -119,15 +118,12 @@ func (b *Bot) handleMessage(ctx context.Context, msg object.MessagesMessage) {
 	go func() {
 		ticker := time.NewTicker(time.Second * 4)
 		defer ticker.Stop()
-		phase := 0
-		phases := []string{"📝 Распознаю задания…", "🧠 Решаю…", "✅ Проверяю ответ…"}
 		for {
 			select {
 			case <-done:
 				return
 			case <-ticker.C:
-				phase = (phase + 1) % len(phases)
-				b.editMessage(msg.PeerID, messageID, fmt.Sprintf("%s (%.0f сек)", phases[phase], time.Since(startTime).Seconds()))
+				b.editMessage(msg.PeerID, messageID, fmt.Sprintf("🧠 Решаю… (%.0f сек)", time.Since(startTime).Seconds()))
 			}
 		}
 	}()
@@ -140,18 +136,7 @@ func (b *Bot) handleMessage(ctx context.Context, msg object.MessagesMessage) {
 		return
 	}
 
-	res, marshalErr := json.MarshalIndent(result, "", "  ")
-	if marshalErr != nil {
-		b.editMessage(msg.PeerID, messageID, fmt.Sprintf("❌ Ошибка сериализации ответа: %v", marshalErr.Error()))
-		return
-	}
-
-	finalText := string(res)
-	if strings.TrimSpace(finalText) == "" {
-		finalText = "❌ Пустой ответ ИИ"
-	}
-
-	parts := splitText(finalText)
+	parts := formatText(result)
 	b.editMessage(msg.PeerID, messageID, parts[0])
 	for _, p := range parts[1:] {
 		_, _ = b.sendMessage(msg.PeerID, msg.ID, p)

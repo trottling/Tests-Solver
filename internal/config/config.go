@@ -22,7 +22,6 @@ type Config struct {
 		Reason  string `yaml:"reason"`
 		Detail  string `yaml:"detail"`
 		Tokens  int    `yaml:"tokens"`
-		Store   bool   `yaml:"store"`
 	} `yaml:"openai"`
 	Bot struct {
 		Workers            int `yaml:"workers"`

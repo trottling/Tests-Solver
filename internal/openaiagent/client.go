@@ -69,29 +69,29 @@ var latexMarkers = []*regexp.Regexp{
 	regexp.MustCompile(`\\cos`),
 }
 
-func (c *Client) SolveImages(ctx context.Context, images []ImageInput) (SolveResult, error) {
+func (c *Client) SolveImages(ctx context.Context, images []ImageInput) (*SolveResult, error) {
 	if len(images) == 0 {
-		return SolveResult{}, fmt.Errorf("нет изображений для решения")
+		return nil, fmt.Errorf("нет изображений для решения")
 	}
 
 	maxTokens := c.outputTokensForPages(len(images))
 
 	extractResp, extractJSON, extractData, err := c.extractTasks(ctx, images, maxTokens)
 	if err != nil {
-		return SolveResult{}, err
+		return nil, err
 	}
 
 	solveJSON, solveData, err := c.solveWithExtract(ctx, extractResp.ID, images, extractJSON, maxTokens)
 	if err != nil {
-		return SolveResult{}, err
+		return nil, err
 	}
 
 	if err = c.validateSolvePayload(solveData, extractData); err != nil {
-		return SolveResult{}, err
+		return nil, err
 	}
 
 	if strings.TrimSpace(solveJSON) == "" {
-		return SolveResult{}, fmt.Errorf("получен пустой JSON-ответ от модели")
+		return nil, fmt.Errorf("получен пустой JSON-ответ от модели")
 	}
 
 	return solveData, nil
@@ -119,23 +119,23 @@ func (c *Client) extractTasks(ctx context.Context, images []ImageInput, maxToken
 	return resp, out, data, nil
 }
 
-func (c *Client) solveWithExtract(ctx context.Context, previousResponseID string, images []ImageInput, extractJSON string, maxTokens int64) (string, SolveResult, error) {
+func (c *Client) solveWithExtract(ctx context.Context, previousResponseID string, images []ImageInput, extractJSON string, maxTokens int64) (string, *SolveResult, error) {
 	payload := c.newSolveRequest(previousResponseID, images, extractJSON, maxTokens)
 	resp, out, data, err := c.runSolve(ctx, payload)
 	if err != nil {
-		return "", SolveResult{}, err
+		return "", nil, err
 	}
 
 	if resp.Status == responses.ResponseStatusIncomplete && resp.IncompleteDetails.Reason == "max_output_tokens" {
 		payload.MaxOutputTokens = openai.Int(maxTokens + 10000)
 		resp, out, data, err = c.runSolve(ctx, payload)
 		if err != nil {
-			return "", SolveResult{}, err
+			return "", nil, err
 		}
 	}
 
 	if resp.Status != responses.ResponseStatusCompleted {
-		return "", SolveResult{}, fmt.Errorf("этап решения завершился со статусом %s", resp.Status)
+		return "", nil, fmt.Errorf("этап решения завершился со статусом %s", resp.Status)
 	}
 
 	return out, data, nil
@@ -154,25 +154,25 @@ func (c *Client) runExtract(ctx context.Context, params responses.ResponseNewPar
 	return resp, out, data, nil
 }
 
-func (c *Client) runSolve(ctx context.Context, params responses.ResponseNewParams) (*responses.Response, string, SolveResult, error) {
+func (c *Client) runSolve(ctx context.Context, params responses.ResponseNewParams) (*responses.Response, string, *SolveResult, error) {
 	resp, err := c.cli.Responses.New(ctx, params)
 	if err != nil {
-		return nil, "", SolveResult{}, err
+		return nil, "", nil, err
 	}
 	out := strings.TrimSpace(resp.OutputText())
-	var data SolveResult
-	if err = json.Unmarshal([]byte(out), &data); err != nil {
-		return nil, out, SolveResult{}, fmt.Errorf("не удалось распарсить JSON решения: %w", err)
+	data := new(SolveResult)
+	if err = json.Unmarshal([]byte(out), data); err != nil {
+		return nil, out, nil, fmt.Errorf("не удалось распарсить JSON решения: %w", err)
 	}
 	return resp, out, data, nil
 }
 
 func (c *Client) newExtractRequest(images []ImageInput, maxTokens int64) responses.ResponseNewParams {
 	return responses.ResponseNewParams{
-		Model:           shared.ResponsesModel(c.config.OpenAI.Model),
+		Model:           c.config.OpenAI.Model,
 		Reasoning:       shared.ReasoningParam{Effort: shared.ReasoningEffort(c.config.OpenAI.Reason)},
 		MaxOutputTokens: openai.Int(maxTokens),
-		Store:           openai.Bool(c.config.OpenAI.Store),
+		Store:           openai.Bool(true),
 		Instructions:    openai.String(DeveloperInstructions),
 		Input:           responses.ResponseNewParamsInputUnion{OfInputItemList: c.buildInput(ExtractUserPrompt, images, "extract")},
 		Text: responses.ResponseTextConfigParam{Format: responses.ResponseFormatTextConfigUnionParam{OfJSONSchema: &responses.ResponseFormatTextJSONSchemaConfigParam{
@@ -187,10 +187,10 @@ func (c *Client) newExtractRequest(images []ImageInput, maxTokens int64) respons
 func (c *Client) newSolveRequest(previousResponseID string, images []ImageInput, extractJSON string, maxTokens int64) responses.ResponseNewParams {
 	userPrompt := SolveUserPrompt + "\n\nJSON извлечения заданий:\n" + extractJSON
 	return responses.ResponseNewParams{
-		Model:              shared.ResponsesModel(c.config.OpenAI.Model),
+		Model:              c.config.OpenAI.Model,
 		Reasoning:          shared.ReasoningParam{Effort: shared.ReasoningEffort(c.config.OpenAI.Reason)},
 		MaxOutputTokens:    openai.Int(maxTokens),
-		Store:              openai.Bool(c.config.OpenAI.Store),
+		Store:              openai.Bool(true),
 		Instructions:       openai.String(DeveloperInstructions),
 		PreviousResponseID: openai.String(previousResponseID),
 		Input:              responses.ResponseNewParamsInputUnion{OfInputItemList: c.buildInput(userPrompt, images, "solve")},
@@ -244,7 +244,7 @@ func (c *Client) outputTokensForPages(pages int) int64 {
 	return recommended
 }
 
-func (c *Client) validateSolvePayload(solve SolveResult, extracted extractedPayload) error {
+func (c *Client) validateSolvePayload(solve *SolveResult, extracted extractedPayload) error {
 	optionsByNumber := make(map[string]map[string]struct{}, len(extracted.Tasks))
 	for _, task := range extracted.Tasks {
 		set := map[string]struct{}{}

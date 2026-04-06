@@ -11,7 +11,6 @@ openai:
   reason: "high" # мыслительное усилие "low" | "medium" | "high"
   detail: "original" # качество обработки картинок "low" | "high" | "auto" | "original"
   tokens: 30000 # стартовый лимит токенов на один ответ (включая reasoning+output)
-  store: false # не сохранять response objects
 
 bot:
   workers: 15 # одновременных запросов к openAI
